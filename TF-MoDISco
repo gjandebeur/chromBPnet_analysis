@@ -1,12 +1,110 @@
 #!/bin/bash
 
 
-```
-CHROMBPNET_GENOME=/Volumes/Gaffney/hpc-nobackup/sciATAC/genome/GRCh38_Verily_v1.genome.fa.mitobl.fa
-CHROMBPNET_CHROMSIZE=/s/cgm/Pelikan/PGaffney/hg38.chrom.sizes
-CHROMBP_DIR=/s/cgm/Pelikan/PGaffney/tenfour/scATAC/chromBPnet/
+CHROMBPNET_GENOME= /path/to/genome.fa 
+CHROMBPNET_CHROMSIZE= /chrom/size/path
+CHROMBP_DIR=/path/to/chromBPnet
 
 CELLTYPE=$1
 CONDITION=$2
 FOLD=$3
-```
+SAMPLE_ID="${CELLTYPE}_${CONDITION}_${FOLD}"
+
+echo "========================================"
+echo "Running modisco/finemo pipeline"
+echo "SAMPLE_ID: ${SAMPLE_ID}"
+echo "========================================"
+
+# File paths - UPDATE FOR contrib_bw filtering
+CONTRIB_SCORES_FILE=${CHROMBP_DIR_V2}/contrib_bw_filtered/${SAMPLE_ID}.counts_scores.h5
+OUTPUT_DIR=${CHROMBP_DIR_V2}/modisco_report/${SAMPLE_ID}
+
+
+# CHECK IF INPUT FILE EXISTS
+if [ ! -f "${CONTRIB_SCORES_FILE}" ]; then
+  echo "ERROR: Input file does not exist: ${CONTRIB_SCORES_FILE}"
+  exit 1
+fi
+
+echo "? Input file found"
+mkdir -p ${OUTPUT_DIR}/finemo_footprint
+
+### STEP 1: Run modisco motif ###
+echo "=== STEP 1: Running modisco motifs ==="
+MODISCO_OUTPUT=${OUTPUT_DIR}/${SAMPLE_ID}_modisco.h5
+
+if [ -f "${MODISCO_OUTPUT}" ] && [ $(stat -c%s "${MODISCO_OUTPUT}" 2>/dev/null || echo 0) -gt 20000 ]; then
+  echo "? Modisco file exists, skipping"
+else
+  modisco motifs \
+    -i ${CONTRIB_SCORES_FILE} \
+    -o ${MODISCO_OUTPUT} \
+    -w 2114 \
+    -n 50000
+fi
+
+### STEP 2: Switch to FINEMO and extract regions ###
+source activate /finemo/download/source/
+
+echo "=== STEP 2: Running finemo extract-regions ==="
+FINEMO_REGIONS=${OUTPUT_DIR}/${SAMPLE_ID}_finemo.npz
+
+if [ -f "${FINEMO_REGIONS}" ] && [ $(stat -c%s "${FINEMO_REGIONS}" 2>/dev/null || echo 0) -gt 20000 ]; then
+  echo "? Finemo extract file exists, skipping"
+else
+  finemo extract-regions-chrombpnet-h5 \
+    -c ${CONTRIB_SCORES_FILE} \
+    -o ${OUTPUT_DIR}/${SAMPLE_ID}_finemo \
+    -p ${REGION_BED_PATH} \
+    -w 2114
+fi
+
+### STEP 3: FINEMO call hits ###
+echo "=== STEP 3: Running finemo call-hits ==="
+HITS_UNIQUE=${OUTPUT_DIR}/finemo_footprint/hits_unique.tsv
+
+if [ -f "${HITS_UNIQUE}" ] && [ $(stat -c%s "${HITS_UNIQUE}" 2>/dev/null || echo 0) -gt 1000 ]; then
+  echo "? Finemo hits file exists, skipping"
+else
+  finemo call-hits -M pp \
+    -r ${FINEMO_REGIONS} \
+    -m ${MODISCO_OUTPUT} \
+    -o ${OUTPUT_DIR}/finemo_footprint \
+    -d cuda:0
+fi
+
+### STEP 4: finemo report ###
+echo "=== STEP 4: Running finemo report ==="
+MOTIF_REPORT=${OUTPUT_DIR}/finemo_footprint/motif_report.tsv
+
+if [ -f "${MOTIF_REPORT}" ] && [ $(stat -c%s "${MOTIF_REPORT}" 2>/dev/null || echo 0) -gt 1000 ]; then
+  echo "? Finemo report exists, skipping"
+else
+  finemo report \
+    -r ${FINEMO_REGIONS} \
+    -H ${OUTPUT_DIR}/finemo_footprint \
+    -o ${OUTPUT_DIR}/finemo_footprint \
+    -m ${MODISCO_OUTPUT}
+fi
+
+### STEP 5: MODISCO REPORT (switch back to chrombpnet) ###
+source activate /source/back/to/ChromBPnet/Dependencies/
+
+echo "=== STEP 5: Running modisco report ==="
+HTML_REPORT=${OUTPUT_DIR}/${SAMPLE_ID}_motifs.html
+
+if [ -f "${HTML_REPORT}" ] && [ $(stat -c%s "${HTML_REPORT}" 2>/dev/null || echo 0) -gt 1000 ]; then
+  echo "? Modisco HTML report exists, skipping"
+else
+  modisco report \
+    -i ${MODISCO_OUTPUT} \
+    -o ${OUTPUT_DIR} \
+    -m JASPAR/TF/path.txt
+  
+  [ -f ${OUTPUT_DIR}/motifs.html ] && \
+    mv ${OUTPUT_DIR}/motifs.html ${HTML_REPORT}
+  [ -f ${OUTPUT_DIR}/motifs_comparison.html ] && \
+    mv ${OUTPUT_DIR}/motifs_comparison.html ${OUTPUT_DIR}/${SAMPLE_ID}_motifs_comparison.html
+fi
+
+echo "? Pipeline complete for ${SAMPLE_ID}!"
