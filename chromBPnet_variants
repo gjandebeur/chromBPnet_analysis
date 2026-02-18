@@ -1,0 +1,138 @@
+#!/bin/bash
+
+
+
+
+
+# Configuration
+CELLTYPE="Bcell"
+CONDITIONS="Control Treated"
+CHROMBP_WORK_DIR= #### CHANGE
+FOLDS="0 1 2 3 4"
+CHROMBPNET_GENOME= ### ADD PATH
+CHROM_SIZES=  ### ADD PATH
+PEAKS= ### ADD PATH
+
+# Create output directories
+mkdir -p ${CHROMBP_WORK_DIR}/var_pred_q
+for CONDITION in ${CONDITIONS}; do
+  mkdir -p ${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_averaged_variantscores
+done
+
+
+### STEP 1 - VARIANT SCORING PER FOLD
+echo "========================================"
+echo "STEP 1: Running variant scoring per fold"
+echo "========================================"
+
+for CONDITION in ${CONDITIONS}; do
+  echo ""
+  echo "Processing condition: ${CONDITION}"
+  echo "----------------------------------------"
+  
+  for FOLD in ${FOLDS}; do
+    OUTPUT_FILE="${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_${FOLD}.variant_scores.tsv"
+    
+    if [ -f "${OUTPUT_FILE}" ]; then
+      echo "  Skipping fold ${FOLD} for ${CONDITION} - output already exists"
+    else
+      echo "  Running fold ${FOLD} for ${CONDITION}..."
+      
+      python /PATH/TO/CHROMBPNET/variant_scoring.py \
+        --list ### ADD VARIANT LIST HERE \
+        --genome ${CHROMBPNET_GENOME} \
+        --model ${CHROMBP_WORK_DIR}/trained_models/${CELLTYPE}_${CONDITION}_${FOLD}/models/${CELLTYPE}_${CONDITION}_${FOLD}_chrombpnet_nobias.h5 \
+        --out_prefix ${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_${FOLD} \
+        --chrom_sizes ${CHROM_SIZES} \
+        --peaks ${PEAKS} \
+        --peak_genome ${CHROMBPNET_GENOME} \
+        -bs 20000
+      
+      if [ $? -eq 0 ]; then
+        echo "  Completed fold ${FOLD} for ${CONDITION}"
+      else
+        echo "  ERROR in fold ${FOLD} for ${CONDITION}"
+        exit 1
+      fi
+    fi
+  done
+  
+  echo "Completed all folds for ${CONDITION}"
+done
+
+echo ""
+echo "All variant scoring complete"
+
+
+### STEP 2 - AVERAGE SCORES ACROSS FOLDS
+
+echo "========================================"
+echo "STEP 2: Averaging scores across folds"
+echo "========================================"
+
+for CONDITION in ${CONDITIONS}; do
+  AVERAGED_OUTPUT="${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_averaged_variantscores/${CONDITION}_averaged.mean.variant_scores.tsv"
+  
+  if [ -f "${AVERAGED_OUTPUT}" ]; then
+    echo ""
+    echo "Skipping averaging for ${CONDITION} - output already exists"
+  else
+    echo ""
+    echo "Averaging scores for ${CONDITION}..."
+    
+    # Build the score list: paths to all fold variant score files
+    SCORE_LIST=""
+    for FOLD in ${FOLDS}; do
+      SCORE_LIST="${SCORE_LIST}${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_${FOLD}.variant_scores.tsv "
+    done
+    
+    python /PATH/TO/CHROMBPNET/variant_summary_across_folds.py \
+      --score_dir ${CHROMBP_WORK_DIR}/var_pred_q \
+      --score_list ${SCORE_LIST} \
+      --out_prefix ${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_averaged_variantscores/${CONDITION}_averaged \
+      --schema chrombpnet
+    
+    if [ $? -eq 0 ]; then
+      echo "Completed averaging for ${CONDITION}"
+    else
+      echo "ERROR in averaging for ${CONDITION}"
+      exit 1
+    fi
+  fi
+done
+
+echo ""
+echo "All averaging complete"
+
+
+### STEP 3 - ANNOTATE AVERAGED VARIANTS
+echo "STEP 3: Annotating averaged variants"
+echo "========================================"
+
+for CONDITION in ${CONDITIONS}; do
+  ANNOT_OUTPUT="${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_averaged_variantscores/${CONDITION}_averaged_annot.variant_scores.tsv"
+  
+  if [ -f "${ANNOT_OUTPUT}" ]; then
+    echo ""
+    echo "Skipping annotation for ${CONDITION} - output already exists"
+  else
+    echo ""
+    echo "Annotating variants for ${CONDITION}..."
+    
+    python /PATH/TO/CHROMBPNET/variant_annotation.py \
+      --list ${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_averaged_variantscores/${CONDITION}_averaged.mean.variant_scores.tsv \
+      --out_prefix ${CHROMBP_WORK_DIR}/var_pred_q/${CONDITION}_averaged_variantscores/${CONDITION}_averaged_annot \
+      --peaks ${PEAKS} \
+      --schema chrombpnet
+    
+    if [ $? -eq 0 ]; then
+      echo "Completed annotation for ${CONDITION}"
+    else
+      echo "ERROR in annotation for ${CONDITION}"
+      exit 1
+    fi
+  fi
+done
+
+echo ""
+echo "All steps complete"
