@@ -1,0 +1,31 @@
+#!/bin/bash
+
+
+```
+CHROMBPNET_GENOME=/Volumes/Gaffney/hpc-nobackup/sciATAC/genome/GRCh38_Verily_v1.genome.fa.mitobl.fa
+CHROMBPNET_CHROMSIZE=/s/cgm/Pelikan/PGaffney/hg38.chrom.sizes
+CHROMBP_DIR=/s/cgm/Pelikan/PGaffney/tenfour/scATAC/chromBPnet/
+
+CELLTYPE=$1
+CONDITION=$2
+FOLD=$3
+```
+
+run training
+
+```
+if [ 1 == 1 ]; then 
+  mkdir -p ${CHROMBP_DIR}trainBF/
+chrombpnet pipeline \
+        -ifrag /path/to/atac/files/ \
+        -d "ATAC" \
+        -g ${CHROMBPNET_GENOME} \
+        -c ${CHROMBPNET_CHROMSIZE} \
+        -p ${CHROMBP_DIR}/data/hg38_${CELLTYPE}_peakset_no_blacklist.narrowPeak \
+        -n ${CHROMBP_DIR}/data/${CELLTYPE}_negatives.bed \
+        -fl ${CHROMBP_DIR}/ref/splits/fold_${FOLD}.json \
+        -b ${CHROMBP_DIR}bias_model/${CELLTYPE}_${CONDITION}_${FOLD}/models/${CELLTYPE}_${CONDITION}_${FOLD}_bias.h5 \
+        -o ${CHROMBP_DIR}trainBF/${CELLTYPE}_${CONDITION}_${FOLD} \
+        -fp ${CELLTYPE}_${CONDITION}_${FOLD}
+fi
+```
