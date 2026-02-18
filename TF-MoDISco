@@ -1,0 +1,12 @@
+#!/bin/bash
+
+
+```
+CHROMBPNET_GENOME=/Volumes/Gaffney/hpc-nobackup/sciATAC/genome/GRCh38_Verily_v1.genome.fa.mitobl.fa
+CHROMBPNET_CHROMSIZE=/s/cgm/Pelikan/PGaffney/hg38.chrom.sizes
+CHROMBP_DIR=/s/cgm/Pelikan/PGaffney/tenfour/scATAC/chromBPnet/
+
+CELLTYPE=$1
+CONDITION=$2
+FOLD=$3
+```
