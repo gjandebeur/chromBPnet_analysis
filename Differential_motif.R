@@ -1,10 +1,9 @@
-
+{r}
 
 ### Differential Motif analysis using modisco results
--aggregating to family-level rather than individual for TF families
+##aggregating to family-level rather than individual for TF families
 
 
-```
 # Install packages if needed
 packages <- c("tidyr", "rvest", "dplyr")
 missing <- packages[!(packages %in% installed.packages()[,"Package"])]
@@ -31,11 +30,9 @@ library(tidyr)
 library(ggplot2)
 library(rvest)
 library(universalmotif)
-```
 
 
-now start differential motif analysis
-```
+
 # Set paths
 base.data.dir <- /change/path/here/
 output.dir <- add/path/here
@@ -171,5 +168,5 @@ p <- family.comparison %>%
   )
 p
 # # Now save it
- ggsave(paste0(output.dir, "qfiltered_log2FC_final.png"), plot = p, width = 6, height = 6)
-```
+#ggsave(paste0(output.dir, "qfiltered_log2FC_final.png"), plot = p, width = 6, height = 6)
+
