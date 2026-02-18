@@ -1,0 +1,37 @@
+#!/bin/bash
+
+#### WORKING DIRECTORIES
+CHROMBPNET_GENOME= ### ADD PATH
+CHROMBPNET_CHROMSIZE= ### ADD PATH
+CHROMBP_DIR= ### ADD PATH
+CHROMBP_DIR_new= ### ADD PATH #this originally to use old bias model to train larger sample model but can be ignored
+
+###cmd line args
+CELLTYPE=$1
+CONDITION=$2
+FOLD=$3
+
+### REGIONS/PEAKS TO ANALYZE 
+REGION_BED_PATH= #PATH TO UR PEAKS
+
+echo "=== Running chromBPnet contribution scores ==="
+echo "CELLTYPE: $CELLTYPE"
+echo "CONDITION: $CONDITION"
+echo "FOLD: $FOLD"
+echo "REGION_BED_PATH: $REGION_BED_PATH"
+
+mkdir -p ${CHROMBP_DIR_new}contrib_bw_filtered/
+
+
+###running chrombpnet contrib_bw ! ####
+
+chrombpnet contribs_bw \
+  -m "${CHROMBP_DIR}trained_models/${CELLTYPE}_${CONDITION}_${FOLD}/models/${CELLTYPE}_${CONDITION}_${FOLD}_chrombpnet_nobias.h5" \
+  -r ${REGION_BED_PATH} \
+  -g ${CHROMBPNET_GENOME} \
+  -c ${CHROMBPNET_CHROMSIZE} \
+  -op ${CHROMBP_DIR_new}contrib_bw_filtered/${CELLTYPE}_${CONDITION}_${FOLD} \
+  -os ${CHROMBP_DIR_new}contrib_bw_filtered/${CELLTYPE}_${CONDITION}_${FOLD}_stats \
+  -t 1
+  
+echo "Output: ${CHROMBP_DIR}contrib_bw_filtered/${CELLTYPE}_${CONDITION}_${FOLD}.counts_scores.h5"
