@@ -1,0 +1,54 @@
+#!/bin/bash
+
+
+```
+CHROMBPNET_GENOME= /set/path/here/
+CHROMBPNET_CHROMSIZE= /set/path/here/
+CHROMBP_WORK_DIR= /set/path/here/
+cd ${CHROMBP_WORK_DIR}
+
+CELLTYPE=$1
+CONDITION=$2
+FOLD=$3
+
+chrombpnet -h
+```
+
+### Set to run on ATAC data, can change to DNase and so forth.
+Folds come from the chromBPnet database as predefined.
+
+
+```
+if [ 1 == 1 ]; then 
+chrombpnet bias train \
+        -ifrag /path/to/ATAC/files/ \  #may have to change to -ibam
+        -d "ATAC" \
+        -g ${CHROMBPNET_GENOME} \
+        -c ${CHROMBPNET_CHROMSIZE} \
+        -p ${CHROMBP_WORK_DIR}/data/hg38_${CELLTYPE}_peakset_no_blacklist.narrowPeak \
+        -n ${CHROMBP_WORK_DIR}/data/${CELLTYPE}_negatives.bed \
+        -fl ${CHROMBP_WORK_DIR}/ref/splits/fold_${FOLD}.json \
+        -b 0.75 \
+        -o ${CHROMBP_WORK_DIR}bias_model/${CELLTYPE}_${CONDITION}_${FOLD} \
+        -fp ${CELLTYPE}_${CONDITION}_${FOLD}
+fi
+```
+
+next run QC for this (will take a long time [hrs])
+
+```
+if [ 1 == 1 ]; then 
+chrombpnet bias qc \
+        -bw /${CHROMBP_WORK_DIR}bias_model/${CELLTYPE}_${CONDITION}_${FOLD}/auxiliary/${CELLTYPE}_${CONDITION}_${FOLD}_data_unstranded.bw \
+        -bm /${CHROMBP_WORK_DIR}bias_model/${CELLTYPE}_${CONDITION}_${FOLD}/models/${CELLTYPE}_${CONDITION}_${FOLD}_bias.h5 \
+        -d "ATAC" \
+        -g ${CHROMBPNET_GENOME} \
+        -c ${CHROMBPNET_CHROMSIZE} \
+        -p ${CHROMBP_WORK_DIR}bias_model/${CELLTYPE}_${CONDITION}_${FOLD}/auxiliary/${CELLTYPE}_${CONDITION}_${FOLD}_filtered.bias_peaks.bed \
+        -n ${CHROMBP_WORK_DIR}bias_model/${CELLTYPE}_${CONDITION}_${FOLD}/auxiliary/${CELLTYPE}_${CONDITION}_${FOLD}_filtered.bias_nonpeaks.bed \
+        -fl ${CHROMBP_WORK_DIR}/ref/splits/fold_${FOLD}.json \
+        -o ${CHROMBP_WORK_DIR}bias_model/${CELLTYPE}_${CONDITION}_${FOLD} \
+        -fp ${CELLTYPE}_${CONDITION}_${FOLD}
+fi
+```
+
