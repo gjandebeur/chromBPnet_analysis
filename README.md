@@ -1,6 +1,8 @@
 # chromBPnet_analysis
 This repository contains scripts for training ChromBPNet models on B cell ATAC-seq data (Unstimulated vs Stimulated conditions) and performing variant effect prediction at lupus-associated genetic loci.
 
+The training steps (all bash) will require HPC access to run. 
+example: one ~10gb ATAC-seq bam file will take ~12 hours to run bias train/QC, another ~8 hours for model training, and ~8 to run TF-MoDISco for TF prediction
 
 
 Tested across 1, 40, and 80 individual groups
